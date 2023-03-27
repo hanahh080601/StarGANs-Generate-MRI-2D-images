@@ -13,12 +13,12 @@ import datetime
 class Solver(object):
     """Solver for training and testing StarGAN."""
 
-    def __init__(self, celeba_loader, rafd_loader, config):
+    def __init__(self, brats2020_loader, ixi_loader, config):
         """Initialize configurations."""
 
         # Data loader.
-        self.celeba_loader = celeba_loader
-        self.rafd_loader = rafd_loader
+        self.brats2020_loader = brats2020_loader
+        self.ixi_loader = ixi_loader
 
         # Model configurations.
         self.c_dim = config.c_dim
@@ -43,7 +43,7 @@ class Solver(object):
         self.beta1 = config.beta1
         self.beta2 = config.beta2
         self.resume_iters = config.resume_iters
-        self.selected_attrs = config.selected_attrs
+        # self.selected_attrs = config.selected_attrs
 
         # Test configurations.
         self.test_iters = config.test_iters
@@ -71,7 +71,7 @@ class Solver(object):
 
     def build_model(self):
         """Create a generator and a discriminator."""
-        if self.dataset in ['CelebA', 'RaFD']:
+        if self.dataset in ['BraTS2020', 'IXI']:
             self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num)
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim, self.d_repeat_num) 
         elif self.dataset in ['Both']:
@@ -146,52 +146,31 @@ class Solver(object):
         out[np.arange(batch_size), labels.long()] = 1
         return out
 
-    def create_labels(self, c_org, c_dim=5, dataset='CelebA', selected_attrs=None):
+    def create_labels(self, c_org, c_dim=4):
         """Generate target domain labels for debugging and testing."""
-        # Get hair color indices.
-        if dataset == 'CelebA':
-            hair_color_indices = []
-            for i, attr_name in enumerate(selected_attrs):
-                if attr_name in ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Gray_Hair']:
-                    hair_color_indices.append(i)
-
         c_trg_list = []
         for i in range(c_dim):
-            if dataset == 'CelebA':
-                c_trg = c_org.clone()
-                if i in hair_color_indices:  # Set one hair color to 1 and the rest to 0.
-                    c_trg[:, i] = 1
-                    for j in hair_color_indices:
-                        if j != i:
-                            c_trg[:, j] = 0
-                else:
-                    c_trg[:, i] = (c_trg[:, i] == 0)  # Reverse attribute value.
-            elif dataset == 'RaFD':
-                c_trg = self.label2onehot(torch.ones(c_org.size(0))*i, c_dim)
-
+            c_trg = self.label2onehot(torch.ones(c_org.size(0))*i, c_dim)
             c_trg_list.append(c_trg.to(self.device))
         return c_trg_list
 
-    def classification_loss(self, logit, target, dataset='CelebA'):
+    def classification_loss(self, logit, target):
         """Compute binary or softmax cross entropy loss."""
-        if dataset == 'CelebA':
-            return F.binary_cross_entropy_with_logits(logit, target, size_average=False) / logit.size(0)
-        elif dataset == 'RaFD':
-            return F.cross_entropy(logit, target)
+        return F.cross_entropy(logit, target)
 
     def train(self):
         """Train StarGAN within a single dataset."""
         # Set data loader.
-        if self.dataset == 'CelebA':
-            data_loader = self.celeba_loader
-        elif self.dataset == 'RaFD':
-            data_loader = self.rafd_loader
+        if self.dataset == 'BraTS2020':
+            data_loader = self.brats2020_loader
+        elif self.dataset == 'IXI':
+            data_loader = self.ixi_loader
 
         # Fetch fixed inputs for debugging.
         data_iter = iter(data_loader)
         x_fixed, c_org = next(data_iter)
         x_fixed = x_fixed.to(self.device)
-        c_fixed_list = self.create_labels(c_org, self.c_dim, self.dataset, self.selected_attrs)
+        c_fixed_list = self.create_labels(c_org, self.c_dim)
 
         # Learning rate cache for decaying.
         g_lr = self.g_lr
@@ -223,12 +202,8 @@ class Solver(object):
             rand_idx = torch.randperm(label_org.size(0))
             label_trg = label_org[rand_idx]
 
-            if self.dataset == 'CelebA':
-                c_org = label_org.clone()
-                c_trg = label_trg.clone()
-            elif self.dataset == 'RaFD':
-                c_org = self.label2onehot(label_org, self.c_dim)
-                c_trg = self.label2onehot(label_trg, self.c_dim)
+            c_org = self.label2onehot(label_org, self.c_dim)
+            c_trg = self.label2onehot(label_trg, self.c_dim)
 
             x_real = x_real.to(self.device)           # Input images.
             c_org = c_org.to(self.device)             # Original domain labels.
@@ -243,7 +218,7 @@ class Solver(object):
             # Compute loss with real images.
             out_src, out_cls = self.D(x_real)
             d_loss_real = - torch.mean(out_src)
-            d_loss_cls = self.classification_loss(out_cls, label_org, self.dataset)
+            d_loss_cls = self.classification_loss(out_cls, label_org)
 
             # Compute loss with fake images.
             x_fake = self.G(x_real, c_trg)
@@ -278,7 +253,7 @@ class Solver(object):
                 x_fake = self.G(x_real, c_trg)
                 out_src, out_cls = self.D(x_fake)
                 g_loss_fake = - torch.mean(out_src)
-                g_loss_cls = self.classification_loss(out_cls, label_trg, self.dataset)
+                g_loss_cls = self.classification_loss(out_cls, label_trg)
 
                 # Target-to-original domain.
                 x_reconst = self.G(x_fake, c_org)
@@ -341,18 +316,18 @@ class Solver(object):
     def train_multi(self):
         """Train StarGAN with multiple datasets."""        
         # Data iterators.
-        celeba_iter = iter(self.celeba_loader)
-        rafd_iter = iter(self.rafd_loader)
+        brats2020_iter = iter(self.brats2020_loader)
+        ixi_iter = iter(self.ixi_loader)
 
         # Fetch fixed inputs for debugging.
-        x_fixed, c_org = next(celeba_iter)
+        x_fixed, c_org = next(brats2020_iter)
         x_fixed = x_fixed.to(self.device)
-        c_celeba_list = self.create_labels(c_org, self.c_dim, 'CelebA', self.selected_attrs)
-        c_rafd_list = self.create_labels(c_org, self.c2_dim, 'RaFD')
-        zero_celeba = torch.zeros(x_fixed.size(0), self.c_dim).to(self.device)           # Zero vector for CelebA.
-        zero_rafd = torch.zeros(x_fixed.size(0), self.c2_dim).to(self.device)             # Zero vector for RaFD.
-        mask_celeba = self.label2onehot(torch.zeros(x_fixed.size(0)), 2).to(self.device)  # Mask vector: [1, 0].
-        mask_rafd = self.label2onehot(torch.ones(x_fixed.size(0)), 2).to(self.device)     # Mask vector: [0, 1].
+        c_brats2020_list = self.create_labels(c_org, self.c_dim)
+        c_ixi_list = self.create_labels(c_org, self.c2_dim)
+        zero_brats2020 = torch.zeros(x_fixed.size(0), self.c_dim).to(self.device)           # Zero vector for BraTS2020.
+        zero_ixi = torch.zeros(x_fixed.size(0), self.c2_dim).to(self.device)             # Zero vector for XIX.
+        mask_brats2020 = self.label2onehot(torch.zeros(x_fixed.size(0)), 2).to(self.device)  # Mask vector: [1, 0].
+        mask_ixi = self.label2onehot(torch.ones(x_fixed.size(0)), 2).to(self.device)     # Mask vector: [0, 1].
 
         # Learning rate cache for decaying.
         g_lr = self.g_lr
@@ -368,37 +343,37 @@ class Solver(object):
         print('Start training...')
         start_time = time.time()
         for i in range(start_iters, self.num_iters):
-            for dataset in ['CelebA', 'RaFD']:
+            for dataset in ['BraTS2020', 'IXI']:
 
                 # =================================================================================== #
                 #                             1. Preprocess input data                                #
                 # =================================================================================== #
                 
                 # Fetch real images and labels.
-                data_iter = celeba_iter if dataset == 'CelebA' else rafd_iter
+                data_iter = brats2020_iter if dataset == 'BraTS2020' else ixi_iter
                 
                 try:
                     x_real, label_org = next(data_iter)
                 except:
-                    if dataset == 'CelebA':
-                        celeba_iter = iter(self.celeba_loader)
-                        x_real, label_org = next(celeba_iter)
-                    elif dataset == 'RaFD':
-                        rafd_iter = iter(self.rafd_loader)
-                        x_real, label_org = next(rafd_iter)
+                    if dataset == 'BraTS2020':
+                        brats2020_iter = iter(self.brats2020_loader)
+                        x_real, label_org = next(brats2020_iter)
+                    elif dataset == 'IXI':
+                        ixi_iter = iter(self.ixi_loader)
+                        x_real, label_org = next(ixi_iter)
 
                 # Generate target domain labels randomly.
                 rand_idx = torch.randperm(label_org.size(0))
                 label_trg = label_org[rand_idx]
 
-                if dataset == 'CelebA':
-                    c_org = label_org.clone()
-                    c_trg = label_trg.clone()
+                if dataset == 'BraTS2020':
+                    c_org = self.label2onehot(label_org, self.c_dim)
+                    c_trg = self.label2onehot(label_trg, self.c_dim)
                     zero = torch.zeros(x_real.size(0), self.c2_dim)
                     mask = self.label2onehot(torch.zeros(x_real.size(0)), 2)
                     c_org = torch.cat([c_org, zero, mask], dim=1)
                     c_trg = torch.cat([c_trg, zero, mask], dim=1)
-                elif dataset == 'RaFD':
+                elif dataset == 'IXI':
                     c_org = self.label2onehot(label_org, self.c2_dim)
                     c_trg = self.label2onehot(label_trg, self.c2_dim)
                     zero = torch.zeros(x_real.size(0), self.c_dim)
@@ -418,9 +393,9 @@ class Solver(object):
 
                 # Compute loss with real images.
                 out_src, out_cls = self.D(x_real)
-                out_cls = out_cls[:, :self.c_dim] if dataset == 'CelebA' else out_cls[:, self.c_dim:]
+                out_cls = out_cls[:, :self.c_dim] if dataset == 'BraTS2020' else out_cls[:, self.c_dim:]
                 d_loss_real = - torch.mean(out_src)
-                d_loss_cls = self.classification_loss(out_cls, label_org, dataset)
+                d_loss_cls = self.classification_loss(out_cls, label_org)
 
                 # Compute loss with fake images.
                 x_fake = self.G(x_real, c_trg)
@@ -454,9 +429,9 @@ class Solver(object):
                     # Original-to-target domain.
                     x_fake = self.G(x_real, c_trg)
                     out_src, out_cls = self.D(x_fake)
-                    out_cls = out_cls[:, :self.c_dim] if dataset == 'CelebA' else out_cls[:, self.c_dim:]
+                    out_cls = out_cls[:, :self.c_dim] if dataset == 'BraTS2020' else out_cls[:, self.c_dim:]
                     g_loss_fake = - torch.mean(out_src)
-                    g_loss_cls = self.classification_loss(out_cls, label_trg, dataset)
+                    g_loss_cls = self.classification_loss(out_cls, label_trg)
 
                     # Target-to-original domain.
                     x_reconst = self.G(x_fake, c_org)
@@ -494,11 +469,11 @@ class Solver(object):
             if (i+1) % self.sample_step == 0:
                 with torch.no_grad():
                     x_fake_list = [x_fixed]
-                    for c_fixed in c_celeba_list:
-                        c_trg = torch.cat([c_fixed, zero_rafd, mask_celeba], dim=1)
+                    for c_fixed in c_brats2020_list:
+                        c_trg = torch.cat([c_fixed, zero_ixi, mask_brats2020], dim=1)
                         x_fake_list.append(self.G(x_fixed, c_trg))
-                    for c_fixed in c_rafd_list:
-                        c_trg = torch.cat([zero_celeba, c_fixed, mask_rafd], dim=1)
+                    for c_fixed in c_ixi_list:
+                        c_trg = torch.cat([zero_brats2020, c_fixed, mask_ixi], dim=1)
                         x_fake_list.append(self.G(x_fixed, c_trg))
                     x_concat = torch.cat(x_fake_list, dim=3)
                     sample_path = os.path.join(self.sample_dir, '{}-images.jpg'.format(i+1))
@@ -526,17 +501,17 @@ class Solver(object):
         self.restore_model(self.test_iters)
         
         # Set data loader.
-        if self.dataset == 'CelebA':
-            data_loader = self.celeba_loader
-        elif self.dataset == 'RaFD':
-            data_loader = self.rafd_loader
+        if self.dataset == 'BraTS2020':
+            data_loader = self.brats2020_loader
+        elif self.dataset == 'IXI':
+            data_loader = self.ixi_loader
         
         with torch.no_grad():
             for i, (x_real, c_org) in enumerate(data_loader):
 
                 # Prepare input images and target domain labels.
                 x_real = x_real.to(self.device)
-                c_trg_list = self.create_labels(c_org, self.c_dim, self.dataset, self.selected_attrs)
+                c_trg_list = self.create_labels(c_org, self.c_dim)
 
                 # Translate images.
                 x_fake_list = [x_real]
@@ -555,24 +530,24 @@ class Solver(object):
         self.restore_model(self.test_iters)
         
         with torch.no_grad():
-            for i, (x_real, c_org) in enumerate(self.celeba_loader):
+            for i, (x_real, c_org) in enumerate(self.brats2020_loader):
 
                 # Prepare input images and target domain labels.
                 x_real = x_real.to(self.device)
-                c_celeba_list = self.create_labels(c_org, self.c_dim, 'CelebA', self.selected_attrs)
-                c_rafd_list = self.create_labels(c_org, self.c2_dim, 'RaFD')
-                zero_celeba = torch.zeros(x_real.size(0), self.c_dim).to(self.device)            # Zero vector for CelebA.
-                zero_rafd = torch.zeros(x_real.size(0), self.c2_dim).to(self.device)             # Zero vector for RaFD.
-                mask_celeba = self.label2onehot(torch.zeros(x_real.size(0)), 2).to(self.device)  # Mask vector: [1, 0].
-                mask_rafd = self.label2onehot(torch.ones(x_real.size(0)), 2).to(self.device)     # Mask vector: [0, 1].
+                c_brats2020_list = self.create_labels(c_org, self.c_dim)
+                c_ixi_list = self.create_labels(c_org, self.c2_dim)
+                zero_brats2020 = torch.zeros(x_real.size(0), self.c_dim).to(self.device)            # Zero vector for BraTS2020.
+                zero_ixi = torch.zeros(x_real.size(0), self.c2_dim).to(self.device)             # Zero vector for IXI.
+                mask_brats2020 = self.label2onehot(torch.zeros(x_real.size(0)), 2).to(self.device)  # Mask vector: [1, 0].
+                mask_ixi = self.label2onehot(torch.ones(x_real.size(0)), 2).to(self.device)     # Mask vector: [0, 1].
 
                 # Translate images.
                 x_fake_list = [x_real]
-                for c_celeba in c_celeba_list:
-                    c_trg = torch.cat([c_celeba, zero_rafd, mask_celeba], dim=1)
+                for c_brats2020 in c_brats2020_list:
+                    c_trg = torch.cat([c_brats2020, zero_ixi, mask_brats2020], dim=1)
                     x_fake_list.append(self.G(x_real, c_trg))
-                for c_rafd in c_rafd_list:
-                    c_trg = torch.cat([zero_celeba, c_rafd, mask_rafd], dim=1)
+                for c_ixi in c_ixi_list:
+                    c_trg = torch.cat([zero_brats2020, c_ixi, mask_ixi], dim=1)
                     x_fake_list.append(self.G(x_real, c_trg))
 
                 # Save the translated images.

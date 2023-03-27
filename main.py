@@ -23,29 +23,25 @@ def main(config):
         os.makedirs(config.result_dir)
 
     # Data loader.
-    celeba_loader = None
-    rafd_loader = None
+    brats2020_loader = None
+    ixi_loader = None
 
-    if config.dataset in ['CelebA', 'Both']:
-        celeba_loader = get_loader(config.celeba_image_dir, config.attr_path, config.selected_attrs,
-                                   config.celeba_crop_size, config.image_size, config.batch_size,
-                                   'CelebA', config.mode, config.num_workers)
-    if config.dataset in ['RaFD', 'Both']:
-        rafd_loader = get_loader(config.rafd_image_dir, None, None,
-                                 config.rafd_crop_size, config.image_size, config.batch_size,
-                                 'RaFD', config.mode, config.num_workers)
+    if config.dataset in ['BraTS2020', 'Both']:
+        brats2020_loader = get_loader(config.brats2020_image_dir, config.image_size, config.batch_size, config.mode, config.num_workers)
+    if config.dataset in ['IXI', 'Both']:
+        ixi_loader = get_loader(config.ixi_image_dir, config.image_size, config.batch_size, config.mode, config.num_workers)
     
 
     # Solver for training and testing StarGAN.
-    solver = Solver(celeba_loader, rafd_loader, config)
+    solver = Solver(brats2020_loader, ixi_loader, config)
 
     if config.mode == 'train':
-        if config.dataset in ['CelebA', 'RaFD']:
+        if config.dataset in ['BraTS2020', 'IXI']:
             solver.train()
         elif config.dataset in ['Both']:
             solver.train_multi()
     elif config.mode == 'test':
-        if config.dataset in ['CelebA', 'RaFD']:
+        if config.dataset in ['BraTS2020', 'IXI']:
             solver.test()
         elif config.dataset in ['Both']:
             solver.test_multi()
@@ -55,10 +51,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Model configuration.
-    parser.add_argument('--c_dim', type=int, default=5, help='dimension of domain labels (1st dataset)')
-    parser.add_argument('--c2_dim', type=int, default=8, help='dimension of domain labels (2nd dataset)')
-    parser.add_argument('--celeba_crop_size', type=int, default=178, help='crop size for the CelebA dataset')
-    parser.add_argument('--rafd_crop_size', type=int, default=256, help='crop size for the RaFD dataset')
+    parser.add_argument('--c_dim', type=int, default=4, help='dimension of domain labels (1st dataset)')
+    parser.add_argument('--c2_dim', type=int, default=4, help='dimension of domain labels (2nd dataset)')
     parser.add_argument('--image_size', type=int, default=128, help='image resolution')
     parser.add_argument('--g_conv_dim', type=int, default=64, help='number of conv filters in the first layer of G')
     parser.add_argument('--d_conv_dim', type=int, default=64, help='number of conv filters in the first layer of D')
@@ -69,7 +63,7 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_gp', type=float, default=10, help='weight for gradient penalty')
     
     # Training configuration.
-    parser.add_argument('--dataset', type=str, default='CelebA', choices=['CelebA', 'RaFD', 'Both'])
+    parser.add_argument('--dataset', type=str, default='BraTS2020', choices=['BraTS2020', 'IXI', 'Both'])
     parser.add_argument('--batch_size', type=int, default=16, help='mini-batch size')
     parser.add_argument('--num_iters', type=int, default=200000, help='number of total iterations for training D')
     parser.add_argument('--num_iters_decay', type=int, default=100000, help='number of iterations for decaying lr')
@@ -79,8 +73,8 @@ if __name__ == '__main__':
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for Adam optimizer')
     parser.add_argument('--beta2', type=float, default=0.999, help='beta2 for Adam optimizer')
     parser.add_argument('--resume_iters', type=int, default=None, help='resume training from this step')
-    parser.add_argument('--selected_attrs', '--list', nargs='+', help='selected attributes for the CelebA dataset',
-                        default=['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young'])
+    # parser.add_argument('--selected_attrs', '--list', nargs='+', help='selected attributes for the CelebA dataset',
+    #                     default=['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Male', 'Young'])
 
     # Test configuration.
     parser.add_argument('--test_iters', type=int, default=200000, help='test model from this step')
@@ -91,9 +85,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_tensorboard', type=str2bool, default=True)
 
     # Directories.
-    parser.add_argument('--celeba_image_dir', type=str, default='data/celeba/images')
-    parser.add_argument('--attr_path', type=str, default='data/celeba/list_attr_celeba.txt')
-    parser.add_argument('--rafd_image_dir', type=str, default='data/RaFD/train')
+    parser.add_argument('--brats2020_image_dir', type=str, default='/media/hanlhn/96446582446565C9/BRATS_DATA/BraTS2020 StarGANs/image_2D/train')
+    parser.add_argument('--ixi_image_dir', type=str, default='/media/hanlhn/96446582446565C9/BRATS_DATA/IXI StarGANs/image_2D/train')
     parser.add_argument('--log_dir', type=str, default='stargan/logs')
     parser.add_argument('--model_save_dir', type=str, default='stargan/models')
     parser.add_argument('--sample_dir', type=str, default='stargan/samples')
