@@ -1,6 +1,4 @@
-## StarGAN - Official PyTorch Implementation
-
-**\*\*\*\*\* New: StarGAN v2 is available at https://github.com/clovaai/stargan-v2 \*\*\*\*\***
+## StarGAN - Multi-contrast MRI 2D images synthesis
 
 <p align="center"><img width="100%" src="jpg/main.jpg" /></p>
 
@@ -20,60 +18,31 @@ This repository provides the official PyTorch implementation of the following pa
 
 
 ## Downloading datasets
-To download the CelebA dataset:
-```bash
-git clone https://github.com/yunjey/StarGAN.git
-cd StarGAN/
-bash download.sh celeba
-```
 
-To download the RaFD dataset, you must request access to the dataset from [the Radboud Faces Database website](http://www.socsci.ru.nl:8180/RaFD2/RaFD?p=main). Then, you need to create a folder structure as described [here](https://github.com/yunjey/StarGAN/blob/master/jpg/RaFD.md).
+To download the BraTS2020 dataset:
+Go to the link [here] (https://www.kaggle.com/datasets/awsaf49/brats20-dataset-training-validation)
+
+To download the IXI dataset:
+Go to the link [here] (https://brain-development.org/ixi-dataset/)
+
+Then, you need to create a folder structure as described [here](https://github.com/hanahh080601/StarGANs---Generate-MRI-2D-images/blob/master/jpg/dataset.md).
 
 ## Training networks
-To train StarGAN on CelebA, run the training script below. See [here](https://github.com/yunjey/StarGAN/blob/master/jpg/CelebA.md) for a list of selectable attributes in the CelebA dataset. If you change the `selected_attrs` argument, you should also change the `c_dim` argument accordingly.
 
-```bash
-# Train StarGAN using the CelebA dataset
-python main.py --mode train --dataset CelebA --image_size 128 --c_dim 5 \
-               --sample_dir stargan_celeba/samples --log_dir stargan_celeba/logs \
-               --model_save_dir stargan_celeba/models --result_dir stargan_celeba/results \
-               --selected_attrs Black_Hair Blond_Hair Brown_Hair Male Young
-
-# Test StarGAN using the CelebA dataset
-python main.py --mode test --dataset CelebA --image_size 128 --c_dim 5 \
-               --sample_dir stargan_celeba/samples --log_dir stargan_celeba/logs \
-               --model_save_dir stargan_celeba/models --result_dir stargan_celeba/results \
-               --selected_attrs Black_Hair Blond_Hair Brown_Hair Male Young
-```
-
-To train StarGAN on RaFD:
-
-```bash
-# Train StarGAN using the RaFD dataset
-python main.py --mode train --dataset RaFD --image_size 128 \
-               --c_dim 8 --rafd_image_dir data/RaFD/train \
-               --sample_dir stargan_rafd/samples --log_dir stargan_rafd/logs \
-               --model_save_dir stargan_rafd/models --result_dir stargan_rafd/results
-
-# Test StarGAN using the RaFD dataset
-python main.py --mode test --dataset RaFD --image_size 128 \
-               --c_dim 8 --rafd_image_dir data/RaFD/test \
-               --sample_dir stargan_rafd/samples --log_dir stargan_rafd/logs \
-               --model_save_dir stargan_rafd/models --result_dir stargan_rafd/results
-```
-
-To train StarGAN on both CelebA and RafD:
+To train StarGAN on both BraTS2020 and IXI:
 
 ```bash
 # Train StarGAN using both CelebA and RaFD datasets
-python main.py --mode=train --dataset Both --image_size 256 --c_dim 5 --c2_dim 8 \
+python main.py --mode=train --dataset Both --image_size 256 --c_dim 4 --c2_dim 4 \
                --sample_dir stargan_both/samples --log_dir stargan_both/logs \
-               --model_save_dir stargan_both/models --result_dir stargan_both/results
+               --model_save_dir stargan_both/models --result_dir stargan_both/results \
+               --batch_size 8
 
 # Test StarGAN using both CelebA and RaFD datasets
-python main.py --mode test --dataset Both --image_size 256 --c_dim 5 --c2_dim 8 \
+python main.py --mode test --dataset Both --image_size 256 --c_dim 4 --c2_dim 4 \
                --sample_dir stargan_both/samples --log_dir stargan_both/logs \
-               --model_save_dir stargan_both/models --result_dir stargan_both/results
+               --model_save_dir stargan_both/models --result_dir stargan_both/results \
+               --batch_size 8
 ```
 
 To train StarGAN on your own dataset, create a folder structure in the same format as [RaFD](https://github.com/yunjey/StarGAN/blob/master/jpg/RaFD.md) and run the command:
@@ -92,25 +61,23 @@ python main.py --mode test --dataset RaFD --rafd_crop_size CROP_SIZE --image_siz
                --model_save_dir stargan_custom/models --result_dir stargan_custom/results
 ```
 
-
 ## Using pre-trained networks
-To download a pre-trained model checkpoint, run the script below. The pre-trained model checkpoint will be downloaded and saved into `./stargan_celeba_128/models` directory.
+To download a pre-trained model checkpoint, run the script below. The pre-trained model checkpoint will be downloaded and saved into `./stargan_both_256/models` directory.
 
 ```bash
-$ bash download.sh pretrained-celeba-128x128
+$ bash download.sh pretrained-both-256x256
 ```
 
-To translate images using the pre-trained model, run the evaluation script below. The translated images will be saved into `./stargan_celeba_128/results` directory.
+To translate images using the pre-trained model, run the evaluation script below. The translated images will be saved into `./stargan_both_256/results` directory.
 
 ```bash
-$ python main.py --mode test --dataset CelebA --image_size 128 --c_dim 5 \
-                 --selected_attrs Black_Hair Blond_Hair Brown_Hair Male Young \
-                 --model_save_dir='stargan_celeba_128/models' \
-                 --result_dir='stargan_celeba_128/results'
+$ python main.py --mode test --dataset IXI --image_size 256 --c_dim 4 \
+                 --model_save_dir='stargan_both_256/models' \
+                 --result_dir='stargan_both_256/results'
 ```
 
 ## Citation
-If you find this work useful for your research, please cite our [paper](https://arxiv.org/abs/1711.09020):
+If you find this work useful for your research, please cite [paper](https://arxiv.org/abs/1711.09020):
 ```
 @inproceedings{choi2018stargan,
 author={Yunjey Choi and Minje Choi and Munyoung Kim and Jung-Woo Ha and Sunghun Kim and Jaegul Choo},

@@ -1,32 +1,31 @@
-## RaFD Dataset Guideline
+## Dataset Guideline
 
-#### 1. Split images into training and test sets (e.g., 90\%/10\% for training and test, respectively).  
+#### 1. Split images into training and test sets (e.g., 90\%/10\% for training and test, respectively).
+
 #### 2. Crop all images to 256 x 256, where the faces are centered.
+
 #### 3. Save images in the format shown below:
 
-
     data
-    └── RaFD
+    └── StarGANs IXI
         ├── train
-        |   ├── angry
+        |   ├── mra
         |   |   ├── aaa.jpg  (name doesn't matter)
         |   |   ├── bbb.jpg
         |   |   └── ...
-        |   ├── happy
+        |   ├── pd
         |   |   ├── ccc.jpg
         |   |   ├── ddd.jpg
         |   |   └── ...
         |   ...
         |
         └── test
-            ├── angry
+            ├── mra
             |   ├── eee.jpg
             |   ├── fff.jpg
             |   └── ...
-            ├── happy
+            ├── pd
             |   ├── ggg.jpg
             |   ├── iii.jpg
             |   └── ...
             ...
-
-
