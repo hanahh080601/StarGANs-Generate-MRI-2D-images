@@ -1,5 +1,16 @@
 FILE=$1
-if [ $FILE == 'pretrained-both-256x256' ]; then
+
+if [ $FILE == "data-sample" ]; then
+
+    # Data samples
+    URL=https://www.dropbox.com/s/7hvr6x1slzh1bxh/data.zip?dl=0
+    ZIP_FILE=./data/data.zip
+    mkdir -p ./data/
+    wget -N $URL -O $ZIP_FILE
+    unzip $ZIP_FILE -d ./data/
+    rm $ZIP_FILE
+
+elif [ $FILE == 'pretrained-both-256x256' ]; then
 
     # StarGAN trained on CelebA (Black_Hair, Blond_Hair, Brown_Hair, Male, Young), 256x256 resolution
     URL=https://www.dropbox.com/s/4gxqe169axc1ezw/pretrained-both-256x256.zip?dl=0
