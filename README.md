@@ -32,33 +32,32 @@ Then, you need to create a folder structure as described [here](https://github.c
 To train StarGAN on both BraTS2020 and IXI:
 
 ```bash
-# Train StarGAN using both CelebA and RaFD datasets
+# Train StarGAN using both BraTS2020 and IXI datasets
 python main.py --mode=train --dataset Both --image_size 256 --c_dim 4 --c2_dim 4 \
                --sample_dir stargan_both/samples --log_dir stargan_both/logs \
                --model_save_dir stargan_both/models --result_dir stargan_both/results \
                --batch_size 8
 
-# Test StarGAN using both CelebA and RaFD datasets
+# Test StarGAN using both BraTS2020 and IXI datasets
 python main.py --mode test --dataset Both --image_size 256 --c_dim 4 --c2_dim 4 \
                --sample_dir stargan_both/samples --log_dir stargan_both/logs \
                --model_save_dir stargan_both/models --result_dir stargan_both/results \
                --batch_size 8
 ```
 
-To train StarGAN on your own dataset, create a folder structure in the same format as [RaFD](https://github.com/yunjey/StarGAN/blob/master/jpg/RaFD.md) and run the command:
-
+To train StarGAN on your own dataset, create a folder structure in the same format as described [here](https://github.com/hanahh080601/StarGANs---Generate-MRI-2D-images/blob/master/jpg/dataset.md).
 ```bash
 # Train StarGAN on custom datasets
-python main.py --mode train --dataset RaFD --rafd_crop_size CROP_SIZE --image_size IMG_SIZE \
-               --c_dim LABEL_DIM --rafd_image_dir TRAIN_IMG_DIR \
-               --sample_dir stargan_custom/samples --log_dir stargan_custom/logs \
-               --model_save_dir stargan_custom/models --result_dir stargan_custom/results
+python main.py --mode train --dataset IXI --ixi_crop_size CROP_SIZE --image_size IMG_SIZE \
+               --c_dim LABEL_DIM --ixi_image_dir TRAIN_IMG_DIR \
+               --sample_dir stargan_ixi/samples --log_dir stargan_ixi/logs \
+               --model_save_dir stargan_ixi/models --result_dir stargan_ixi/results
 
 # Test StarGAN on custom datasets
-python main.py --mode test --dataset RaFD --rafd_crop_size CROP_SIZE --image_size IMG_SIZE \
-               --c_dim LABEL_DIM --rafd_image_dir TEST_IMG_DIR \
-               --sample_dir stargan_custom/samples --log_dir stargan_custom/logs \
-               --model_save_dir stargan_custom/models --result_dir stargan_custom/results
+python main.py --mode test --dataset IXI --ixi_crop_size CROP_SIZE --image_size IMG_SIZE \
+               --c_dim LABEL_DIM --ixi_image_dir TEST_IMG_DIR \
+               --sample_dir stargan_ixi/samples --log_dir stargan_ixi/logs \
+               --model_save_dir stargan_ixi/models --result_dir stargan_ixi/results
 ```
 
 ## Using pre-trained networks
@@ -72,6 +71,7 @@ To translate images using the pre-trained model, run the evaluation script below
 
 ```bash
 $ python main.py --mode test --dataset IXI --image_size 256 --c_dim 4 \
+                 --ixi_image_dir TEST_IMG_DIR \
                  --model_save_dir='stargan_both_256/models' \
                  --result_dir='stargan_both_256/results'
 ```
