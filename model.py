@@ -1,7 +1,89 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms as T
+from torchvision.utils import save_image
+from torch.autograd import Variable
+import os
 import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import nibabel as nib
+import glob
+import random
+import argparse
+import torch.backends.cudnn as cudnn
+import torch.nn.functional as F
+import torch.optim as optim
+import cv2
+
+class ResBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1, downsample=False, upsample=False):
+        super(ResBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
+        # self.bn1 = nn.BatchNorm2d(out_channels)
+        self.bn1 = nn.InstanceNorm2d(out_channels, affine=True, track_running_stats=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3,stride=stride, padding=1)
+        # self.bn2 = nn.BatchNorm2d(out_channels)
+        self.bn2 = nn.InstanceNorm2d(out_channels, affine=True, track_running_stats=True)
+        if downsample:
+            self.downsample = nn.AvgPool2d(2)
+        else:
+            self.downsample = None
+        if upsample:
+            # deconcolution
+            self.upsample = nn.ConvTranspose2d(out_channels, out_channels // 2, kernel_size=2, stride=2)
+        else:
+            self.upsample = None
+
+    def forward(self, x):
+        # print(x.shape)
+        out = self.conv1(x)
+        # print(out.shape)
+        out = self.bn1(out)
+        out = self.relu(out)
+        residual = out
+        out = self.conv2(out)
+        # print(out.shape)
+        out = self.bn2(out)
+        # print(out.shape)
+        out += residual
+        out = self.relu(out)
+        if self.downsample:
+            actual_out = self.downsample(out)
+        elif self.upsample:
+            actual_out = self.upsample(out)
+        else:
+            actual_out = out
+        # print(residual.shape)
+        return actual_out, out
+
+
+
+class ResUnet(nn.Module):
+    def __init__(self):
+        super(ResUnet, self).__init__()
+        self.down_block1 = ResBlock(3, 64, downsample=True)
+        self.down_block2 = ResBlock(64, 128, downsample=True)
+        self.encoder = ResBlock(128, 256, upsample=True)  
+        self.up_block = ResBlock(256, 128, upsample=True)    
+        self.final_block = ResBlock(128, 64)
+        self.final_conv = nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        out, down1 = self.down_block1(x)
+        out, down2 = self.down_block2(out)
+        out, _ = self.encoder(out)
+        print(out.shape)
+        print(down2.shape)
+        out = torch.cat([out, down2], dim=1)
+        out, _ = self.up_block(out)
+        out = torch.cat([out, down1], dim=1)
+        out, _ = self.final_block(out)
+        out = self.final_conv(out)
+        return out
 
 
 class ResidualBlock(nn.Module):
