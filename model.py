@@ -1,22 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms as T
-from torchvision.utils import save_image
-from torch.autograd import Variable
-import os
 import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-import nibabel as nib
-import glob
-import random
-import argparse
-import torch.backends.cudnn as cudnn
-import torch.nn.functional as F
-import torch.optim as optim
-import cv2
+
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, downsample=False, upsample=False):
@@ -39,16 +24,12 @@ class ResBlock(nn.Module):
             self.upsample = None
 
     def forward(self, x):
-        # print(x.shape)
         out = self.conv1(x)
-        # print(out.shape)
         out = self.bn1(out)
         out = self.relu(out)
         residual = out
         out = self.conv2(out)
-        # print(out.shape)
         out = self.bn2(out)
-        # print(out.shape)
         out += residual
         out = self.relu(out)
         if self.downsample:
@@ -57,27 +38,27 @@ class ResBlock(nn.Module):
             actual_out = self.upsample(out)
         else:
             actual_out = out
-        # print(residual.shape)
         return actual_out, out
 
 
 
-class ResUnet(nn.Module):
-    def __init__(self):
-        super(ResUnet, self).__init__()
-        self.down_block1 = ResBlock(3, 64, downsample=True)
-        self.down_block2 = ResBlock(64, 128, downsample=True)
-        self.encoder = ResBlock(128, 256, upsample=True)  
-        self.up_block = ResBlock(256, 128, upsample=True)    
-        self.final_block = ResBlock(128, 64)
-        self.final_conv = nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1)
+class ResUnetGenerator(nn.Module):
+    def __init__(self, conv_dim=64, c_dim=4, repeat_num=6):
+        super(ResUnetGenerator, self).__init__()
+        self.down_block1 = ResBlock(3+c_dim, conv_dim, downsample=True)
+        self.down_block2 = ResBlock(conv_dim, conv_dim*2, downsample=True)
+        self.encoder = ResBlock(conv_dim*2, conv_dim*4, upsample=True)  
+        self.up_block = ResBlock(conv_dim*4, conv_dim*2, upsample=True)    
+        self.final_block = ResBlock(conv_dim*2, conv_dim)
+        self.final_conv = nn.Conv2d(conv_dim, 3, kernel_size=3, stride=1, padding=1)
 
-    def forward(self, x):
+    def forward(self, x, c):
+        c = c.view(c.size(0), c.size(1), 1, 1)
+        c = c.repeat(1, 1, x.size(2), x.size(3))
+        x = torch.cat([x, c], dim=1)
         out, down1 = self.down_block1(x)
         out, down2 = self.down_block2(out)
         out, _ = self.encoder(out)
-        print(out.shape)
-        print(down2.shape)
         out = torch.cat([out, down2], dim=1)
         out, _ = self.up_block(out)
         out = torch.cat([out, down1], dim=1)

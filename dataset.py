@@ -1,40 +1,34 @@
 from glob import glob
-
-import numpy as np
 import cv2
-
-import torch 
-import torch.nn as nn
 from torch.utils.data import Dataset
+import os
 
-from PIL import Image
-
-class BratDataset(Dataset):
-    def __init__(self, data_dir, transform=None, source_format='flair'):
+class CustomDataset(Dataset):
+    def __init__(self, data_dir, source_contrast, contrast_list, transform):
         self.transform = transform
         self.data_dir = data_dir
-        self.format_list = ['flair', 't1', 't1ce', 't2']
+        self.contrast_list = contrast_list
         self.data_path = {}
-        self.source_format = source_format
-        for format in self.format_list:
-            self.data_path[format] = sorted(glob(f'{data_dir}/{format}/*'))
+        self.source_contrast = source_contrast
+        for contrast in self.contrast_list:
+            self.data_path[contrast] = sorted(glob(f'{data_dir}/{contrast}/*'))
 
     def __len__(self):
-        return len(self.data_path[self.format_list[0]])
+        return len(self.data_path[self.contrast_list[0]])
 
     def __getitem__(self, idx):
         data = {}
         data['source'] = (
-            self.transform(cv2.imread(self.data_path[self.source_format][idx])),
-            [id for id in range(len(self.format_list)) if self.format_list[id] == self.source_format][0],
-            self.data_path[self.source_format][idx]
+            self.transform(cv2.imread(self.data_path[self.source_contrast][idx])),
+            [id for id in range(len(self.contrast_list)) if self.contrast_list[id] == self.source_contrast][0],
+            self.data_path[self.source_contrast][idx]
         )
-        data['target'] = []
-        for format in self.format_list:
-            if format != self.source_format:
-                data['target'].append((
-                    self.transform(cv2.imread(self.data_path[format][idx])),
-                    [id for id in range(len(self.format_list)) if self.format_list[id] == format][0],
-                    self.data_path[format][idx]
-                ))
+        data['target'] = {}
+        for contrast in self.contrast_list:
+            # if contrast != self.source_contrast:
+            data['target'][contrast] = ((
+                self.transform(cv2.imread(self.data_path[contrast][idx])),
+                [id for id in range(len(self.contrast_list)) if self.contrast_list[id] == contrast][0],
+                self.data_path[contrast][idx]
+            ))
         return data
