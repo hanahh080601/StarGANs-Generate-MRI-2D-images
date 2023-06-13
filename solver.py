@@ -1,5 +1,4 @@
-from model import Generator, Discriminator, ResUnetGenerator
-from optimize_models.model import TransformNetwork
+from model import Generator, Discriminator, ResUnetGenerator, ResUnet
 from torch.autograd import Variable
 from torchvision.utils import save_image
 import torch
@@ -9,6 +8,7 @@ import os
 import time
 import datetime
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+import pytorch_ssim.pytorch_ssim as pytorch_ssim
 
 
 class Solver(object):
@@ -44,7 +44,6 @@ class Solver(object):
         self.beta1 = config.beta1
         self.beta2 = config.beta2
         self.resume_iters = config.resume_iters
-        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=config.model_lpips)
 
         # Test configurations.
         self.test_iters = config.test_iters
@@ -54,6 +53,8 @@ class Solver(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # self.device = torch.device('cpu')
 
+        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=config.model_lpips).to(self.device)
+        self.ssim = pytorch_ssim.ssim
 
         # Directories.
         self.log_dir = config.log_dir
@@ -75,10 +76,10 @@ class Solver(object):
     def build_model(self):
         """Create a generator and a discriminator."""
         if self.dataset in ['BraTS2020', 'IXI']:
-            self.G = TransformNetwork(self.g_conv_dim, self.c_dim, self.g_repeat_num)
+            self.G = ResUnet(self.g_conv_dim, self.c_dim, self.g_repeat_num)
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim, self.d_repeat_num) 
         elif self.dataset in ['Both']:
-            self.G = TransformNetwork(self.g_conv_dim, self.c_dim+self.c2_dim+2, self.g_repeat_num)   # 2 for mask vector.
+            self.G = ResUnet(self.g_conv_dim, self.c_dim+self.c2_dim+2, self.g_repeat_num)   # 2 for mask vector.
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim+self.c2_dim, self.d_repeat_num)
 
         self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
@@ -264,9 +265,10 @@ class Solver(object):
 
                 #LPIPS
                 lpips_loss = self.lpips(x_real, x_reconst)
+                ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
 
                 # Backward and optimize.
-                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
+                g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
                 self.reset_grad()
                 g_loss.backward()
                 self.g_optimizer.step()
@@ -443,8 +445,15 @@ class Solver(object):
                     x_reconst = self.G(x_fake, c_org)
                     g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
 
+                    #LPIPS
+                    lpips_loss = self.lpips(self.denorm(x_real), self.denorm(x_reconst))
+                    #SSIM
+                    ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
+
                     # Backward and optimize.
-                    g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
+                    g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
+                    # Backward and optimize.
+                    # g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
                     self.reset_grad()
                     g_loss.backward()
                     self.g_optimizer.step()
