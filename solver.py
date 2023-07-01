@@ -264,11 +264,12 @@ class Solver(object):
                 g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
 
                 #LPIPS
-                lpips_loss = self.lpips(x_real, x_reconst)
-                ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
+                # lpips_loss = self.lpips(x_real, x_reconst)
+                # ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
 
                 # Backward and optimize.
-                g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
+                # g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
+                g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
                 self.reset_grad()
                 g_loss.backward()
                 self.g_optimizer.step()
@@ -446,14 +447,14 @@ class Solver(object):
                     g_loss_rec = torch.mean(torch.abs(x_real - x_reconst))
 
                     #LPIPS
-                    lpips_loss = self.lpips(self.denorm(x_real), self.denorm(x_reconst))
+                    # lpips_loss = self.lpips(self.denorm(x_real), self.denorm(x_reconst))
                     #SSIM
-                    ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
+                    # ssim_loss = (1 - self.ssim(self.denorm(x_real), self.denorm(x_reconst)))/2
 
                     # Backward and optimize.
-                    g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
+                    # g_loss = g_loss_fake + self.lambda_rec * (g_loss_rec+lpips_loss+ssim_loss) + self.lambda_cls * g_loss_cls
                     # Backward and optimize.
-                    # g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
+                    g_loss = g_loss_fake + self.lambda_rec * g_loss_rec + self.lambda_cls * g_loss_cls
                     self.reset_grad()
                     g_loss.backward()
                     self.g_optimizer.step()

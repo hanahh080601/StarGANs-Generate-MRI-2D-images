@@ -86,10 +86,10 @@ if __name__ == '__main__':
     # Directories.
     parser.add_argument('--brats2020_image_dir', type=str, default='/home/han/MRI_DATA/BraTS2020 StarGANs/image_2D/test')
     parser.add_argument('--ixi_image_dir', type=str, default='/home/han/MRI_DATA/IXI StarGANs/image_2D/test')
-    parser.add_argument('--log_dir', type=str, default='resunet_custom_new_loss_both/logs')
-    parser.add_argument('--model_save_dir', type=str, default='resunet_custom_new_loss_both/models')
-    parser.add_argument('--sample_dir', type=str, default='resunet_custom_new_loss_both/samples')
-    parser.add_argument('--result_dir', type=str, default='resunet_custom_new_loss_both/results')
+    parser.add_argument('--log_dir', type=str, default='resunet_custom_both/logs')
+    parser.add_argument('--model_save_dir', type=str, default='resunet_custom_both/models')
+    parser.add_argument('--sample_dir', type=str, default='resunet_custom_both/samples')
+    parser.add_argument('--result_dir', type=str, default='resunet_custom_both/results')
 
     # Step size.
     parser.add_argument('--log_step', type=int, default=10)
