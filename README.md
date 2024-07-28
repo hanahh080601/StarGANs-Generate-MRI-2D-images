@@ -36,10 +36,14 @@ python main.py --mode test --dataset Both --image_size 256 --c_dim 4 --c2_dim 4 
 ## Citation
 If you find this work useful for your research, please cite [paper]([https://arxiv.org/abs/1711.09020](https://doi.org/10.15388/24-INFOR556)):
 ```
-@inproceedings{le2024adeep,
-author={Le Hoang Ngoc Han, Ngo Le Huy Hien, Luu Van Huy, Nguyen Van Hieu },
-title={A Deep Learning Model for Multi-Domain MRI Synthesis Using Generative Adversarial Networks},
-journal={Informatica, 35(2), 283-309},
-year={2024}
+@article{han2024,
+  author = {Le Hoang Ngoc Han and Ngo Le Huy Hien and Luu Van Huy and Nguyen Van Hieu},
+  title = {A Deep Learning Model for Multi-Domain MRI Synthesis Using Generative Adversarial Networks},
+  journal = {Informatica},
+  volume = {35},
+  number = {2},
+  pages = {283-309},
+  year = {2024},
+  doi = {10.15388/24-INFOR556}
 }
 ```
